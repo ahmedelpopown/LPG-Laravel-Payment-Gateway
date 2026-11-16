@@ -1,5 +1,5 @@
 {
-    "name": "LPG/LPG-Laravel-Payment-Gateway",
+    "name": "ahmedelpopown/lpg-laravel-payment-gateway",
     "description": "Reusable Laravel Payment Core for Stripe, PayPal, refunds, webhooks and reconciliation, with optional Booking and Stancl Tenancy integrations.",
     "type": "library",
     "license": "MIT",
