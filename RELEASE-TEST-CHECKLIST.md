@@ -55,3 +55,14 @@ Use a disposable database and dedicated Stripe test / PayPal Sandbox credentials
 - [ ] Confirm logs never contain API secrets, OAuth tokens, card data, or webhook signing secrets.
 
 Passing the package unit suite does not replace the provider Sandbox round trips, host-application integration tests, or a production readiness review.
+
+
+## Stripe Checkout cancellation
+
+- [ ] Cancel an open, unpaid Checkout Session and verify Stripe returns `status=expired`, `payment_status=unpaid`, and local Payment becomes `cancelled`.
+- [ ] After confirmed cancellation, verify the related Mini Store OrderPaymentAttempt becomes `cancelled` and a different provider can start a new attempt.
+- [ ] Attempt cancellation after Stripe already reports `payment_status=paid`; verify the local Payment becomes/remains `paid` and no expiry request is sent.
+- [ ] Attempt cancellation for a completed but unpaid asynchronous Session; verify local state stays `processing` and changing provider remains blocked.
+- [ ] Simulate expiry request timeout after Stripe expires the Session; verify the follow-up retrieve recognizes the expired Session.
+- [ ] Simulate expiry timeout while the Session remains open and/or retrieve timeout; verify local state is not changed to `cancelled`.
+- [ ] Verify only the owner of the order can submit the cancellation route.

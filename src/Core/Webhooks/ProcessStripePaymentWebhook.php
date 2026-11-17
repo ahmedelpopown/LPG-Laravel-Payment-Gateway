@@ -44,6 +44,21 @@ final class ProcessStripePaymentWebhook
 
         $record = $this->recordEvent($event, $eventId, $eventType);
         if ($record === null) {
+            $existing = PaymentWebhookEvent::query()
+                ->where('provider', PaymentProvider::Stripe->value)
+                ->where('event_id', $eventId)
+                ->first();
+
+            // Only terminal events are safe to acknowledge as duplicates. An event
+            // still marked processing/received may be in-flight or awaiting retry.
+            if (! $existing || ! in_array($existing->status, ['processed', 'ignored', 'rejected'], true)) {
+                throw new PaymentGatewayException(
+                    'Stripe webhook event is already being processed or is awaiting retry.',
+                    'stripe_webhook_event_in_progress',
+                    503,
+                );
+            }
+
             return 'duplicate';
         }
 

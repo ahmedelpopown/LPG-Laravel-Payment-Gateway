@@ -30,9 +30,9 @@ In `payment-package-playground/composer.json`, add this local repository entry:
             "type": "path",
             "url": "../laravel-payment",
             "options": {
-                "symlink": true,
+                "symlink": false,
                 "versions": {
-                    "ahmed/laravel-payment": "2.0.2"
+                    "ahmedelpopown/lpg-laravel-payment-gateway": "2.0.2"
                 }
             }
         }
@@ -43,7 +43,7 @@ In `payment-package-playground/composer.json`, add this local repository entry:
 From the Playground root:
 
 ```powershell
-composer require ahmed/laravel-payment:^2.0 -W
+composer require ahmedelpopown/lpg-laravel-payment-gateway:^2.0.2 -W
 ```
 
 The path repository is for local development only. It avoids stale Git tags while the package is being changed. Do not run this `composer require` command inside the `laravel-payment` package folder.

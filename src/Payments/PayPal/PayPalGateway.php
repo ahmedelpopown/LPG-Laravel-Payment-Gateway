@@ -63,7 +63,7 @@ final class PayPalGateway implements IdempotentRefundGateway
             'purchase_units' => [[
                 'reference_id' => (string) $payment->getKey(),
                 'custom_id' => $payment->idempotency_key,
-                'invoice_id' => 'PAYMENT-'.$payment->getKey(),
+                'invoice_id' => $this->invoiceId($payment),
                 'amount' => [
                     'currency_code' => strtoupper($payment->currency),
                     'value' => $amount,
@@ -437,6 +437,18 @@ final class PayPalGateway implements IdempotentRefundGateway
         [$whole, $fraction] = array_pad(explode('.', $this->normalizeAmount($amount), 2), 2, '00');
 
         return ((int) $whole * 100) + (int) $fraction;
+    }
+
+    private function invoiceId(Model $payment): string
+    {
+        // PayPal requires invoice_id to be unique for the receiving merchant.
+        // A local auto-increment key can be reused after restores or across databases.
+        // Hashing the persisted idempotency key keeps the ID stable for retries.
+        return 'PAYMENT-'.strtoupper(substr(
+            hash('sha256', 'paypal-payment-invoice:'.$payment->idempotency_key),
+            0,
+            40,
+        ));
     }
 
     private function requestId(Model $payment, string $operation): string

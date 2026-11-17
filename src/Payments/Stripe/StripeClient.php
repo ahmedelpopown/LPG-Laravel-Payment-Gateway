@@ -13,7 +13,7 @@ use Throwable;
  * Small boundary around stripe-php. Provider SDK calls stay out of controllers
  * and booking actions, and tenant credentials are resolved for every request.
  */
-final class StripeClient
+class StripeClient
 {
     public function __construct(
         private readonly StripeCredentialsResolver $credentialsResolver,
@@ -53,6 +53,24 @@ final class StripeClient
             throw $exception;
         } catch (Throwable $exception) {
             throw $this->providerException('retrieve_checkout_session', $exception);
+        }
+    }
+
+    /**
+     * Expire an open Stripe Checkout Session so it can no longer be paid.
+     *
+     * @return array<string, mixed>
+     */
+    public function expireCheckoutSession(string $sessionId): array
+    {
+        try {
+            $session = $this->client()->checkout->sessions->expire($sessionId);
+
+            return $session->toArray();
+        } catch (PaymentGatewayException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            throw $this->providerException('expire_checkout_session', $exception);
         }
     }
 

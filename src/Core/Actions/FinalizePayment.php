@@ -24,7 +24,7 @@ final class FinalizePayment
             throw new PaymentGatewayException('Provider reference does not match the saved payment.', 'payment_reference_mismatch');
         }
 
-        if (! in_array($result->status, [PaymentStatus::Paid, PaymentStatus::Processing, PaymentStatus::Failed], true)) {
+        if (! in_array($result->status, [PaymentStatus::Paid, PaymentStatus::Processing, PaymentStatus::Failed, PaymentStatus::Cancelled], true)) {
             throw new PaymentGatewayException('Provider returned an unsupported payment state.', 'payment_result_status_invalid');
         }
 

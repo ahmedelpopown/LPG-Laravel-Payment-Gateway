@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ahmed\LaravelPayment\Payments\Stripe;
 
+use Ahmed\LaravelPayment\Contracts\CancellableCheckoutGateway;
 use Ahmed\LaravelPayment\Contracts\IdempotentRefundGateway;
 use Ahmed\LaravelPayment\Core\Models\Payment as CorePayment;
 use Ahmed\LaravelPayment\Data\CheckoutSessionData;
@@ -15,7 +16,7 @@ use Ahmed\LaravelPayment\Exceptions\PaymentGatewayException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Route;
 
-final class StripeGateway implements IdempotentRefundGateway
+final class StripeGateway implements IdempotentRefundGateway, CancellableCheckoutGateway
 {
     public function __construct(
         private readonly StripeClient $client,
@@ -177,6 +178,152 @@ public function createCheckout(Model $payment): CheckoutSessionData
                 'stripe_session_id' => $sessionId,
             ],
         );
+    }
+
+    /**
+     * Cancel an unpaid Stripe Checkout Session.
+     *
+     * The local payment is only cancelled after Stripe confirms that the
+     * Checkout Session is expired and remains unpaid. An ambiguous network
+     * result is deliberately propagated so the application keeps the attempt
+     * open until it can be reconciled.
+     */
+    public function cancelCheckout(Model $payment): PaymentResultData
+    {
+        $this->assertStripePayment($payment);
+        $this->assertPersistedPayment($payment);
+        $this->assertSupportedCurrency((string) $payment->currency);
+
+        $sessionId = $payment->provider_reference;
+        if (! is_string($sessionId) || trim($sessionId) === '') {
+            throw new PaymentGatewayException(
+                'The payment does not have a Stripe Checkout Session reference.',
+                'stripe_session_reference_missing',
+            );
+        }
+
+        $session = $this->client->retrieveCheckoutSession($sessionId);
+        $this->assertSessionMatchesPayment($session, $payment);
+
+        $settledResult = $this->cancellationResultForKnownSessionState($session);
+        if ($settledResult !== null) {
+            return $settledResult;
+        }
+
+        $sessionStatus = strtolower((string) ($session['status'] ?? ''));
+        $paymentStatus = strtolower((string) ($session['payment_status'] ?? ''));
+
+        if ($sessionStatus !== 'open' || $paymentStatus !== 'unpaid') {
+            throw new PaymentGatewayException(
+                'Stripe has not confirmed that this Checkout Session can be cancelled. Keep the current payment attempt open and retry synchronization.',
+                'stripe_checkout_cancellation_not_confirmed',
+            );
+        }
+
+        try {
+            $expiredSession = $this->client->expireCheckoutSession($sessionId);
+            $this->assertSessionMatchesPayment($expiredSession, $payment);
+        } catch (PaymentGatewayException $exception) {
+            // The expiry request may have reached Stripe even when the response
+            // was lost. Read the session again before deciding its local state.
+            try {
+                $latestSession = $this->client->retrieveCheckoutSession($sessionId);
+                $this->assertSessionMatchesPayment($latestSession, $payment);
+            } catch (PaymentGatewayException $lookupException) {
+                throw new PaymentGatewayException(
+                    'Stripe could not confirm whether the Checkout Session was cancelled. The payment remains open; do not start another provider attempt yet.',
+                    'stripe_checkout_cancellation_outcome_unknown',
+                    $lookupException->httpStatus,
+                    $exception,
+                );
+            }
+
+            $recoveredResult = $this->cancellationResultForKnownSessionState($latestSession);
+            if ($recoveredResult !== null) {
+                return $recoveredResult;
+            }
+
+            // It is still open/unpaid or in an unexpected state. Do not mark
+            // the local payment cancelled when Stripe has not confirmed it.
+            throw $exception;
+        }
+
+        $result = $this->cancellationResultForKnownSessionState($expiredSession);
+        if ($result === null || $result->status !== PaymentStatus::Cancelled) {
+            throw new PaymentGatewayException(
+                'Stripe did not confirm that the Checkout Session expired while unpaid. The payment attempt remains open.',
+                'stripe_checkout_cancellation_not_confirmed',
+            );
+        }
+
+        return $result;
+    }
+
+    /** @param array<string, mixed> $session */
+    private function cancellationResultForKnownSessionState(array $session): ?PaymentResultData
+    {
+        $sessionStatus = strtolower((string) ($session['status'] ?? ''));
+        $providerPaymentStatus = strtolower((string) ($session['payment_status'] ?? ''));
+        $amount = $this->fromMinorUnits((int) ($session['amount_total'] ?? 0));
+        $currency = strtoupper((string) ($session['currency'] ?? ''));
+        $sessionId = (string) ($session['id'] ?? '');
+        $paymentIntentId = $this->extractId($session['payment_intent'] ?? null);
+
+        if ($providerPaymentStatus === 'paid') {
+            if ($paymentIntentId === null) {
+                throw new PaymentGatewayException(
+                    'Stripe reports that this Checkout Session is paid but did not return its PaymentIntent reference.',
+                    'stripe_payment_intent_reference_missing',
+                );
+            }
+
+            return new PaymentResultData(
+                status: PaymentStatus::Paid,
+                amount: $amount,
+                currency: $currency,
+                providerReference: $sessionId,
+                transactionId: $paymentIntentId,
+                metadata: [
+                    'stripe_session_status' => $sessionStatus,
+                    'stripe_payment_status' => $providerPaymentStatus,
+                    'cancellation_attempt_result' => 'already_paid',
+                ],
+            );
+        }
+
+        if ($sessionStatus === 'expired' && $providerPaymentStatus === 'unpaid') {
+            return new PaymentResultData(
+                status: PaymentStatus::Cancelled,
+                amount: $amount,
+                currency: $currency,
+                providerReference: $sessionId,
+                metadata: [
+                    'stripe_session_status' => $sessionStatus,
+                    'stripe_payment_status' => $providerPaymentStatus,
+                    'cancelled_at_provider' => now()->toIso8601String(),
+                ],
+            );
+        }
+
+        if ($sessionStatus === 'complete') {
+            // Some asynchronous payment methods can complete the Checkout
+            // Session before the final payment result is known. Do not unlock
+            // another provider while Stripe still reports unpaid.
+            return new PaymentResultData(
+                status: PaymentStatus::Processing,
+                amount: $amount,
+                currency: $currency,
+                providerReference: $sessionId,
+                transactionId: $paymentIntentId,
+                metadata: [
+                    'stripe_session_status' => $sessionStatus,
+                    'stripe_payment_status' => $providerPaymentStatus,
+                    'cancellation_attempt_result' => 'payment_processing',
+                ],
+            );
+        }
+
+        return null;
     }
 
     public function refund(Model $payment, string $amount): RefundResultData

@@ -1,6 +1,18 @@
+## 2.0.3 (test candidate)
+
+- Added safe Core Payment cancellation for Stripe Checkout. The package expires the remote Checkout Session and marks the local payment cancelled only after Stripe confirms an expired, unpaid session.
+- Reconciles a lost Stripe expiry response by retrieving the Checkout Session before changing local state.
+- Keeps completed-but-unpaid asynchronous Checkout Sessions in processing and never unlocks another provider attempt prematurely.
+- Allows `Cancelled` as a provider-confirmed finalization result.
+
 # Changelog
 
 ## 2.0.2 - PayPal recovery and package test harness
+
+### Audit follow-up fixes
+- PayPal checkout `invoice_id` is now derived from the persisted payment idempotency key, so auto-increment ID reuse cannot collide with a previous Sandbox/Live invoice.
+- PayPal, Stripe payment, and Stripe refund webhook processors now return a retryable HTTP 503 for duplicate deliveries whose event is still processing or awaiting retry. Only terminal duplicate events are acknowledged with HTTP 200.
+
 
 ### Added
 - PayPal `showOrder()` support to retrieve the authoritative order and capture details.

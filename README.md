@@ -113,14 +113,14 @@ Local Payment Record
 
 ### 4.1 التثبيت من Git Repository
 
-إذا كانت الحزمة مستضافة في Git Repository خاص أو عام، أضف Repository إلى `composer.json` في مشروع Laravel المستهلك:
+استخدم طريقة VCS بعد نشر Tag مطابق للإصدار المطلوب. في Snapshot المرفق حاليًا لا يوجد Tag `v2.0.2` بعد؛ إلى أن يتم اعتماد هذا الإصدار ونشره، استخدم Local Path في القسم 4.2. بعد نشر `v2.0.2`، أضف Repository إلى `composer.json` في مشروع Laravel المستهلك:
 
 ```json
 {
     "repositories": [
         {
             "type": "vcs",
-            "url": "https://github.com/ahmedelpopown/package-payment.git",
+            "url": "https://github.com/ahmedelpopown/LPG-Laravel-Payment-Gateway.git",
             "no-api": true
         }
     ]
@@ -130,7 +130,7 @@ Local Payment Record
 ثم من مجلد مشروع Laravel:
 
 ```bash
-composer require ahmed/laravel-payment:^2.0
+composer require ahmedelpopown/lpg-laravel-payment-gateway:^2.0.2
 ```
 
 > لو الحزمة منشورة لاحقًا على Packagist، لن تحتاج إلى تعريف `repositories`.
@@ -154,9 +154,9 @@ workspace/
             "type": "path",
             "url": "../laravel-payment",
             "options": {
-                "symlink": true,
+                "symlink": false,
                 "versions": {
-                    "ahmed/laravel-payment": "2.0.2"
+                    "ahmedelpopown/lpg-laravel-payment-gateway": "2.0.2"
                 }
             }
         }
@@ -167,10 +167,10 @@ workspace/
 ثم نفّذ من جذر التطبيق المستهلك:
 
 ```bash
-composer require ahmed/laravel-payment:^2.0 -W
+composer require ahmedelpopown/lpg-laravel-payment-gateway:^2.0.2 -W
 ```
 
-`symlink: true` يجعل Composer يربط التطبيق بمصدر الحزمة المحلي، وبالتالي تظهر تغييرات المصدر مباشرة أثناء التطوير. هذا الأسلوب مناسب للتطوير المحلي، وليس طريقة نشر Production.
+`symlink: false` يجعل Composer ينسخ الحزمة المحلية إلى `vendor`، لذلك أعد تنفيذ `composer update ahmedelpopown/lpg-laravel-payment-gateway -W` بعد كل تعديل في مصدر الحزمة.
 
 ### 4.3 نشر ملفات الإعدادات وتثبيت الجداول
 
@@ -1314,7 +1314,7 @@ $run->items;
 أغلب المشاريع ستحتاج إلى هذا التسلسل فقط:
 
 ```bash
-composer require ahmed/laravel-payment:^2.0
+composer require ahmedelpopown/lpg-laravel-payment-gateway:^2.0.2
 php artisan vendor:publish --tag=payment-config
 php artisan vendor:publish --tag=laravel-payment-reconciliation-config
 php artisan payments:install
