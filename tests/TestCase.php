@@ -29,7 +29,6 @@ abstract class TestCase extends Orchestra
         ]);
 
         $app['config']->set('payments.routes.core_auto_register', false);
-        $app['config']->set('payments.booking.enabled', false);
         $app['config']->set('payments.paypal.client_id', 'paypal-test-client-id');
         $app['config']->set('payments.paypal.client_secret', 'paypal-test-client-secret');
         $app['config']->set('payments.paypal.webhook_id', 'WH-TEST-PAYPAL');

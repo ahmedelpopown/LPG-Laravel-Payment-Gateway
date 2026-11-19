@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * Defines the operations every payment provider must support.
  *
  * Provider-specific HTTP requests and response parsing belong in the gateway
- * implementation and its client, not in controllers or booking services.
+ * implementation and its client, not in controllers or application business services.
  */
 interface PaymentGateway
 {

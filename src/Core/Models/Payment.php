@@ -12,8 +12,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Str;
 
 /**
- * Provider-agnostic payment record. It does not require a Booking, User,
- * Employee, Order, or any other application-owned table.
+ * Provider-agnostic payment record. It does not require any application-owned business table.
  */
 class Payment extends Model
 {

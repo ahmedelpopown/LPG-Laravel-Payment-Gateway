@@ -9,16 +9,11 @@ use InvalidArgumentException;
 final readonly class PayPalCredentialsData
 {
     public function __construct(
-        public string $tenantId,
         public string $clientId,
         public string $clientSecret,
         public string $mode,
         public ?string $webhookId = null,
     ) {
-        if (trim($this->tenantId) === '') {
-            throw new InvalidArgumentException('A tenant ID is required for PayPal credentials.');
-        }
-
         if (trim($this->clientId) === '' || trim($this->clientSecret) === '') {
             throw new InvalidArgumentException('PayPal client credentials are required.');
         }

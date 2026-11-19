@@ -15,7 +15,6 @@ class PaymentWebhookEvent extends Model
         'event_id',
         'event_type',
         'payment_id',
-        'booking_payment_id',
         'status',
         'error_code',
         'payload',
@@ -33,11 +32,5 @@ class PaymentWebhookEvent extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id');
-    }
-
-    /** Backward compatibility for the optional Booking integration. */
-    public function bookingPayment(): BelongsTo
-    {
-        return $this->belongsTo(BookingPayment::class, 'booking_payment_id');
     }
 }

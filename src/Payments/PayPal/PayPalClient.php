@@ -91,7 +91,7 @@ class PayPalClient
         if (! is_string($credentials->webhookId) || trim($credentials->webhookId) === '') {
             throw new PaymentGatewayException(
                 'The PayPal webhook ID is not configured for this shop.',
-                'tenant_paypal_webhook_id_missing',
+                'paypal_webhook_id_missing',
             );
         }
 
@@ -246,7 +246,7 @@ class PayPalClient
     private function accessToken(PayPalCredentialsData $credentials, bool $forceRefresh = false): string
     {
         $cacheKey = 'payments.paypal.access_token.'
-            .$credentials->tenantId.'.'.$credentials->mode.'.'.hash('sha256', $credentials->clientId);
+            .$credentials->mode.'.'.hash('sha256', $credentials->clientId);
 
         $cachedToken = $forceRefresh ? null : $this->cache->get($cacheKey);
 

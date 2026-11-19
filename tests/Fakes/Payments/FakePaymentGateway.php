@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Ahmed\LaravelPayment\Tests\Fakes\Payments;
 
-use Ahmed\LaravelPayment\Contracts\PaymentGateway;
+use Ahmed\LaravelPayment\Contracts\IdempotentRefundGateway;
 use Ahmed\LaravelPayment\Data\CheckoutSessionData;
 use Ahmed\LaravelPayment\Data\PaymentResultData;
 use Ahmed\LaravelPayment\Data\RefundResultData;
@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * Deterministic gateway for automated tests only. Never register this class
  * in the production payments configuration.
  */
-final class FakePaymentGateway implements PaymentGateway
+final class FakePaymentGateway implements IdempotentRefundGateway
 {
     public function supportsCurrency(string $currency): bool
     {
@@ -58,6 +58,11 @@ final class FakePaymentGateway implements PaymentGateway
             status: $status,
             metadata: ['environment' => 'testing'],
         );
+    }
+
+    public function refundWithIdempotency(Model $payment, string $amount, string $idempotencyKey): RefundResultData
+    {
+        return $this->refund($payment, $amount);
     }
 
     private static function toMinorUnits(string $amount): int

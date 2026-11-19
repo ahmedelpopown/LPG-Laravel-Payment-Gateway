@@ -11,7 +11,7 @@ use Throwable;
 
 /**
  * Small boundary around stripe-php. Provider SDK calls stay out of controllers
- * and booking actions, and tenant credentials are resolved for every request.
+ * with application-level credentials resolved for every request.
  */
 class StripeClient
 {
@@ -33,7 +33,7 @@ class StripeClient
 
             return $session->toArray();
         } catch (PaymentGatewayException $exception) {
-            // Keep application errors (missing tenant/key, invalid tenant context) intact.
+            // Keep application configuration errors intact.
             throw $exception;
         } catch (Throwable $exception) {
             throw $this->providerException('create_checkout_session', $exception);
@@ -215,16 +215,8 @@ class StripeClient
             ? $this->redactSecrets($stripeErrorMessage)
             : null;
 
-        $tenantId = null;
-        try {
-            $tenantId = tenancy()->tenant?->getTenantKey();
-        } catch (Throwable) {
-            // Logging must never replace the original provider exception.
-        }
-
         Log::error('Stripe API request failed.', [
             'operation' => $operation,
-            'tenant_id' => $tenantId,
             'exception_class' => $exception::class,
             'http_status' => $status,
             'stripe_request_id' => is_string($requestId) ? $requestId : null,
@@ -238,7 +230,7 @@ class StripeClient
         $connectionError = $status === null;
 
         return new PaymentGatewayException(
-            "Stripe {$operation} failed. Check the Stripe API response and the tenant credentials.",
+            "Stripe {$operation} failed. Check the Stripe API response and the configured credentials.",
             $connectionError ? 'stripe_connection_error' : 'stripe_api_error',
             $status,
             $exception,

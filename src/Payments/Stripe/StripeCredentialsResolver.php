@@ -6,25 +6,13 @@ namespace Ahmed\LaravelPayment\Payments\Stripe;
 
 use Ahmed\LaravelPayment\Data\StripeCredentialsData;
 use Ahmed\LaravelPayment\Exceptions\PaymentGatewayException;
-use Ahmed\LaravelPayment\Models\TenantPaymentCredential;
 
 final class StripeCredentialsResolver
 {
     public function resolve(bool $requireWebhookSecret = false): StripeCredentialsData
     {
-        $tenancy = function_exists('tenancy') ? tenancy() : null;
-        $tenant = $tenancy?->initialized ? $tenancy->tenant : null;
-
-        if ($tenant !== null) {
-            $credentials = TenantPaymentCredential::query()->find((string) $tenant->getTenantKey());
-            $tenantId = (string) $tenant->getTenantKey();
-            $secretKey = $credentials?->stripe_secret_key;
-            $webhookSecret = $credentials?->stripe_webhook_secret;
-        } else {
-            $tenantId = 'global';
-            $secretKey = config('payments.stripe.secret_key');
-            $webhookSecret = config('payments.stripe.webhook_secret');
-        }
+        $secretKey = config('payments.stripe.secret_key');
+        $webhookSecret = config('payments.stripe.webhook_secret');
 
         if (! is_string($secretKey) || trim($secretKey) === '') {
             throw new PaymentGatewayException(
@@ -41,7 +29,6 @@ final class StripeCredentialsResolver
         }
 
         return new StripeCredentialsData(
-            tenantId: $tenantId,
             secretKey: trim($secretKey),
             webhookSecret: is_string($webhookSecret) && trim($webhookSecret) !== '' ? trim($webhookSecret) : null,
         );

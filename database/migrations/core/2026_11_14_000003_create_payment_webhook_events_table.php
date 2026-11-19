@@ -20,9 +20,6 @@ return new class extends Migration
                     ->constrained('payments')
                     ->nullOnDelete();
 
-                // Legacy compatibility only. There is deliberately no FK to a Booking table.
-                $table->unsignedBigInteger('booking_payment_id')->nullable();
-
                 $table->string('status', 20)->default('received');
                 $table->string('error_code', 120)->nullable();
                 $table->json('payload')->nullable();
@@ -31,14 +28,12 @@ return new class extends Migration
 
                 $table->unique(['provider', 'event_id'], 'payment_webhook_events_provider_event_unique');
                 $table->index(['provider', 'status'], 'payment_webhook_events_provider_status_index');
-                $table->index('booking_payment_id', 'payment_webhook_events_booking_payment_index');
             });
 
             return;
         }
 
-        // Upgrade path for installations that already have the legacy Booking
-        // webhook table from v1.x. Preserve its records and booking_payment_id.
+        // Add the generic payment relation when upgrading an existing event ledger.
         if (! Schema::hasColumn('payment_webhook_events', 'payment_id')) {
             Schema::table('payment_webhook_events', function (Blueprint $table): void {
                 $table->foreignId('payment_id')->nullable()
@@ -48,12 +43,6 @@ return new class extends Migration
             });
         }
 
-        if (! Schema::hasColumn('payment_webhook_events', 'booking_payment_id')) {
-            Schema::table('payment_webhook_events', function (Blueprint $table): void {
-                $table->unsignedBigInteger('booking_payment_id')->nullable();
-                $table->index('booking_payment_id', 'payment_webhook_events_booking_payment_index');
-            });
-        }
     }
 
     public function down(): void
@@ -63,8 +52,7 @@ return new class extends Migration
             return;
         }
 
-        // Keep the event ledger and legacy Booking data when rolling back. Only
-        // remove the generic Core relation introduced by this migration.
+        // Keep the event ledger when rolling back. Only remove the generic Core relation.
         Schema::table('payment_webhook_events', function (Blueprint $table): void {
             $table->dropForeign(['payment_id']);
             $table->dropColumn('payment_id');

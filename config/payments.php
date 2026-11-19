@@ -6,14 +6,8 @@ use Ahmed\LaravelPayment\Payments\PayPal\PayPalGateway;
 use Ahmed\LaravelPayment\Payments\Stripe\StripeGateway;
 
 return [
-    // In a normal Laravel app this is the default connection. In a Stancl app
-    // configure this to the central connection for tenant credential storage.
+    // Optional database connection used by the package installation command.
     'connection' => env('PAYMENTS_CONNECTION'),
-
-    // Legacy Booking integration keys are null by default and must be set by an app that opts in.
-    'booking_model' => null,
-    'employee_model' => null,
-    'booking_currency' => strtoupper((string) env('BOOKING_PAYMENT_CURRENCY', 'USD')),
 
     'gateways' => [
         'paypal' => PayPalGateway::class,
@@ -47,8 +41,6 @@ return [
         ],
     ],
 
-    // Optional browser destinations after a provider redirect. If omitted,
-    // the package callback returns a small JSON response.
     'redirects' => [
         'success_url' => env('PAYMENTS_SUCCESS_URL'),
         'cancel_url' => env('PAYMENTS_CANCEL_URL'),
@@ -56,25 +48,5 @@ return [
 
     'routes' => [
         'core_auto_register' => true,
-        'booking_auto_register' => false, // Deprecated; use payments.booking.enabled instead.
-        'tenant_active_middleware' => null,
-    ],
-
-    // Booking integration is disabled by default. A consuming project may
-    // override these with its own models/services and install it explicitly.
-    'booking' => [
-        'enabled' => false,
-        'booking_model' => null,
-        'employee_model' => null,
-        'tenant_resolver' => null,
-        'price_calculator' => null,
-        'feature_gate' => null,
-        'currency' => strtoupper((string) env('BOOKING_PAYMENT_CURRENCY', 'USD')),
-    ],
-
-    'auth' => [
-        'customer_guard' => 'web',
-        'employee_guard' => 'web',
-        'admin_role' => 'admin',
     ],
 ];

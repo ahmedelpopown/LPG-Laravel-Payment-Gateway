@@ -14,7 +14,6 @@ use Ahmed\LaravelPayment\Enums\PaymentProvider;
 use Ahmed\LaravelPayment\Enums\PaymentStatus;
 use Ahmed\LaravelPayment\Exceptions\PaymentGatewayException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Route;
 
 final class StripeGateway implements IdempotentRefundGateway, CancellableCheckoutGateway
 {
@@ -48,30 +47,19 @@ public function createCheckout(Model $payment): CheckoutSessionData
     $currency = strtolower((string) $payment->currency);
     $paymentId = (string) $payment->getKey();
 
-    $isBookingPayment = $payment->getTable() === 'booking_payments';
+    $successUrl = route('payments.core.return', [
+        'provider' => 'stripe',
+        'payment' => $payment,
+    ]).'?session_id={CHECKOUT_SESSION_ID}';
 
-    $successRoute = $isBookingPayment && Route::has('payments.stripe.return')
-        ? 'payments.stripe.return'
-        : 'payments.core.return';
-    $cancelRoute = $isBookingPayment && Route::has('payments.stripe.cancel')
-        ? 'payments.stripe.cancel'
-        : 'payments.core.cancel';
-
-    $successParameters = $successRoute === 'payments.core.return'
-        ? ['provider' => 'stripe', 'payment' => $payment]
-        : ['payment' => $payment];
-    $cancelParameters = $cancelRoute === 'payments.core.cancel'
-        ? ['provider' => 'stripe', 'payment' => $payment]
-        : ['payment' => $payment];
-
-    $successUrl = route($successRoute, $successParameters).'?session_id={CHECKOUT_SESSION_ID}';
-    $cancelUrl = route($cancelRoute, $cancelParameters);
+    $cancelUrl = route('payments.core.cancel', [
+        'provider' => 'stripe',
+        'payment' => $payment,
+    ]);
 
     $metadata = [
         'payment_id' => $paymentId,
-        ...(($payment->getTable() === 'booking_payments') ? ['booking_payment_id' => $paymentId] : []),
         'payment_model' => class_basename($payment),
-        ...((isset($payment->booking_id) && $payment->booking_id !== null) ? ['booking_id' => (string) $payment->booking_id] : []),
     ];
 
     $session = $this->client->createCheckoutSession([
@@ -382,7 +370,7 @@ public function createCheckout(Model $payment): CheckoutSessionData
             || $intentAmount !== $this->toMinorUnits((string) $payment->amount)
             || $receivedMinorUnits !== $this->toMinorUnits((string) $payment->amount)) {
             throw new PaymentGatewayException(
-                'The Stripe PaymentIntent amount or currency does not match the saved booking payment.',
+                'The Stripe PaymentIntent amount or currency does not match the saved payment.',
                 'stripe_refund_payment_intent_mismatch',
             );
         }
@@ -462,7 +450,7 @@ public function createCheckout(Model $payment): CheckoutSessionData
         );
     }
 
-    /** Validate a Stripe webhook Session against the saved booking payment. */
+    /** Validate a Stripe webhook Session against the saved Core payment. */
     public function assertWebhookSessionMatchesPayment(array $session, Model $payment): void
     {
         $this->assertStripePayment($payment);
@@ -501,7 +489,7 @@ public function createCheckout(Model $payment): CheckoutSessionData
     {
         $sessionId = $session['id'] ?? null;
         $clientReferenceId = $session['client_reference_id'] ?? null;
-        $metadataPaymentId = data_get($session, 'metadata.payment_id', data_get($session, 'metadata.booking_payment_id'));
+        $metadataPaymentId = data_get($session, 'metadata.payment_id');
         $amountTotal = $session['amount_total'] ?? null;
         $currency = $session['currency'] ?? null;
 
@@ -552,7 +540,7 @@ public function createCheckout(Model $payment): CheckoutSessionData
 
         if (! is_string($payment->idempotency_key) || trim($payment->idempotency_key) === '') {
             throw new PaymentGatewayException(
-                'The booking payment is missing its idempotency key.',
+                'The payment is missing its idempotency key.',
                 'payment_idempotency_key_missing',
             );
         }

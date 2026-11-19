@@ -12,7 +12,6 @@ use Ahmed\LaravelPayment\Enums\PaymentProvider;
 use Ahmed\LaravelPayment\Enums\PaymentStatus;
 use Ahmed\LaravelPayment\Exceptions\PaymentGatewayException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Route;
 
 final class PayPalGateway implements IdempotentRefundGateway
 {
@@ -48,15 +47,15 @@ final class PayPalGateway implements IdempotentRefundGateway
         }
 
         $amount = $this->normalizeAmount((string) $payment->amount);
-        $isBookingPayment = $payment->getTable() === 'booking_payments';
+        $returnUrl = route('payments.core.return', [
+            'provider' => 'paypal',
+            'payment' => $payment,
+        ]);
 
-        if ($isBookingPayment && Route::has('payments.paypal.return') && Route::has('payments.paypal.cancel')) {
-            $returnUrl = route('payments.paypal.return', ['payment' => $payment]);
-            $cancelUrl = route('payments.paypal.cancel', ['payment' => $payment]);
-        } else {
-            $returnUrl = route('payments.core.return', ['provider' => 'paypal', 'payment' => $payment]);
-            $cancelUrl = route('payments.core.cancel', ['provider' => 'paypal', 'payment' => $payment]);
-        }
+        $cancelUrl = route('payments.core.cancel', [
+            'provider' => 'paypal',
+            'payment' => $payment,
+        ]);
 
         $payload = [
             'intent' => 'CAPTURE',

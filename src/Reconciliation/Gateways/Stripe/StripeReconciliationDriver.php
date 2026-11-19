@@ -232,7 +232,7 @@ final class StripeReconciliationDriver implements ReconciliationGatewayDriver
             throw new ReconciliationException('Stripe secret credential is missing.');
         }
 
-        // Do not cache this client in a singleton driver: credentials may be tenant-specific.
+        // Do not cache this client in a singleton driver: credentials may change between reconciliation runs.
         return new StripeClient($secret);
     }
 
