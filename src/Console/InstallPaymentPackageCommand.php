@@ -16,33 +16,45 @@ final class InstallPaymentPackageCommand extends Command
     public function handle(): int
     {
         $packageRoot = dirname(__DIR__, 2);
-        $migrationPaths = [
-            $packageRoot.'/database/migrations/core',
-            $packageRoot.'/database/migrations/reconciliation',
+        $defaultConnection = (string) config('database.default', 'mysql');
+        $paymentConnection = (string) (config('payments.connection') ?: $defaultConnection);
+        $reconciliationConnection = (string) (
+            config('laravel-payment-reconciliation.database.connection')
+            ?: $paymentConnection
+        );
+
+        $migrationGroups = [
+            [
+                'path' => $packageRoot.'/database/migrations/core',
+                'connection' => $paymentConnection,
+            ],
+            [
+                'path' => $packageRoot.'/database/migrations/reconciliation',
+                'connection' => $reconciliationConnection,
+            ],
         ];
 
-        foreach ($migrationPaths as $path) {
-            if (! is_dir($path)) {
-                $this->error("Package migration path not found: {$path}");
+        foreach ($migrationGroups as $group) {
+            if (! is_dir($group['path'])) {
+                $this->error("Package migration path not found: {$group['path']}");
 
                 return self::FAILURE;
             }
-        }
 
-        $connection = config('payments.connection') ?: config('database.default', 'mysql');
-        $exitCode = Artisan::call('migrate', [
-            '--database' => $connection,
-            '--path' => $migrationPaths,
-            '--realpath' => true,
-            '--force' => (bool) $this->option('force'),
-        ]);
+            $exitCode = Artisan::call('migrate', [
+                '--database' => $group['connection'],
+                '--path' => [$group['path']],
+                '--realpath' => true,
+                '--force' => (bool) $this->option('force'),
+            ]);
 
-        $this->output->write(Artisan::output());
+            $this->output->write(Artisan::output());
 
-        if ($exitCode !== self::SUCCESS) {
-            $this->error('Payment package installation failed.');
+            if ($exitCode !== self::SUCCESS) {
+                $this->error('Payment package installation failed.');
 
-            return self::FAILURE;
+                return self::FAILURE;
+            }
         }
 
         $this->info('Payment Core and Reconciliation tables are installed.');

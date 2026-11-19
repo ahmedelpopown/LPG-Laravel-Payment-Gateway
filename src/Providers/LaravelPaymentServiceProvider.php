@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Ahmed\LaravelPayment\Providers;
 
 use Ahmed\LaravelPayment\Console\InstallPaymentPackageCommand;
+use Ahmed\LaravelPayment\Core\Models\Payment;
+use Ahmed\LaravelPayment\Observers\PaymentObserver;
 use Ahmed\LaravelPayment\Payments\PaymentGatewayManager;
 use Illuminate\Support\ServiceProvider;
 
@@ -18,6 +20,8 @@ final class LaravelPaymentServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Payment::observe(PaymentObserver::class);
+
         $this->loadMigrationsFrom(__DIR__.'/../../database/migrations/core');
         $this->loadMigrationsFrom(__DIR__.'/../../database/migrations/reconciliation');
 
